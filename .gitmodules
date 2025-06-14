@@ -1,5 +1,5 @@
-[submodule "external/glfw3"]
-	path = external/glfw3
+[submodule "external/glfw"]
+	path = external/glfw
 	url = https://github.com/glfw/glfw
 [submodule "external/spdlog"]
 	path = external/spdlog
