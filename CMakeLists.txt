@@ -20,8 +20,10 @@ add_subdirectory(external/spdlog)
 target_include_directories(${PROJECT_NAME} PUBLIC
 	external/glfw/include 
 	external/spdlog/include 
+	external/glm/glm
 	${PROJECT_SOURCE_DIR}/include
 )
+
 target_link_libraries(${PROJECT_NAME} PUBLIC glfw spdlog)
 
 # Move compile commands to root directory if they exist

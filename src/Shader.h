@@ -1,10 +1,10 @@
 #pragma once
 
-#include <glad/glad.h>
 #include <fstream>
 #include <string>
 #include <sstream>
 #include <iostream>
+#include <glad/glad.h>
 
 class Shader {
 public: 
