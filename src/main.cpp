@@ -1,5 +1,6 @@
 #include "ext/matrix_transform.hpp"
 #include "ext/vector_float3.hpp"
+#include "geometric.hpp"
 #include "trigonometric.hpp"
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -26,12 +27,26 @@
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 void ProcessInput(GLFWwindow *window);
+void ProcessMouse(GLFWwindow* window, double xpos, double ypos);
 
 const char *vertexShaderPath = "src/shaders/vertex.vert";
 const char *fragmentShaderPath = "src/shaders/fragment.frag";
 
 const u16 screenWidth = 1280;
 const u16 screenHeight = 720;
+
+glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
+glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
+glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+
+float deltaTime = 0.0f;
+float lastFrame = 0.0f;
+
+bool firstMouse = false;
+float lastX = screenWidth * 0.5;
+float lastY = screenHeight * 0.5;
+float yaw = -90.0f;
+float pitch = 0.0f;
 
 int main(void) {
   spdlog::info("I love you, you got this <3");
@@ -61,42 +76,43 @@ int main(void) {
 
   // Define vertex data to send to the GPU
   float verticies[] = {
+		// Position			// Tex Coord
 		-0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
-0.5f, -0.5f, -0.5f, 1.0f, 0.0f,
-0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
-0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
+		0.5f, -0.5f, -0.5f, 1.0f, 0.0f,
+		0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
+		0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
 		-0.5f, 0.5f, -0.5f, 0.0f, 1.0f,
--0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
--0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
-0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
-0.5f, 0.5f, 0.5f, 1.0f, 1.0f,
-0.5f, 0.5f, 0.5f, 1.0f, 1.0f,
--0.5f, 0.5f, 0.5f, 0.0f, 1.0f,
--0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
--0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
--0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
--0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
--0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
--0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
--0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
-0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
-0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
-0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
-0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
--0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-0.5f, -0.5f, -0.5f, 1.0f, 1.0f,
-0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
-0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
--0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
--0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
--0.5f, 0.5f, -0.5f, 0.0f, 1.0f,
-0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
-0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
-0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
--0.5f, 0.5f, 0.5f, 0.0f, 0.0f,
--0.5f, 0.5f, -0.5f, 0.0f, 1.0f
+		-0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
+		-0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
+		0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
+		0.5f, 0.5f, 0.5f, 1.0f, 1.0f,
+		0.5f, 0.5f, 0.5f, 1.0f, 1.0f,
+		-0.5f, 0.5f, 0.5f, 0.0f, 1.0f,
+		-0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
+		-0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+		-0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
+		-0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+		-0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+		-0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
+		-0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+		0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+		0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
+		0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+		0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+		0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
+		0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+		-0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+		0.5f, -0.5f, -0.5f, 1.0f, 1.0f,
+		0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
+		0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
+		-0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
+		-0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+		-0.5f, 0.5f, -0.5f, 0.0f, 1.0f,
+		0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
+		0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+		0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+		-0.5f, 0.5f, 0.5f, 0.0f, 0.0f,
+		-0.5f, 0.5f, -0.5f, 0.0f, 1.0f
   };
 
 	glm::vec3 cubePositions[] = {
@@ -108,8 +124,9 @@ int main(void) {
 		glm::vec3(2.4f, -0.4f, -3.5f),
 		glm::vec3(-1.7f, 3.0f, -7.5f),
 		glm::vec3(1.3f, -2.0f, -2.5f),
-		glm::vec3(1.5f, 2.0f, -2.5f),
+		glm::vec3(2.0f, 2.0f, -2.5f),
 		glm::vec3(2.5f, 0.2f, -1.5f),
+		//glm::vec3(2.5f, 0.2f, -1.5f),
 	};
 
   // Define indicies of vertex groups to be rendered, lowering the load on the
@@ -178,14 +195,20 @@ int main(void) {
                         (void *)(3 * sizeof(float)));
   glEnableVertexAttribArray(1);
 	
-	glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, -3.0f);
+
+	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+	glfwSetCursorPosCallback(window, ProcessMouse);
 
 
   while (!glfwWindowShouldClose(window)) {
     ProcessInput(window);
 
+	float currentTime = glfwGetTime();
+	deltaTime = currentTime - lastFrame;
+	lastFrame = currentTime;
+
 	glEnable(GL_DEPTH_TEST);
-    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    glClearColor(0.08f, 0.07f, 0.07f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     shader.use();
     glBindVertexArray(VAO);
@@ -194,27 +217,13 @@ int main(void) {
 
 	
 	glm::mat4 view = glm::mat4(1);
-	view = glm::translate(view, cameraPos);
+
+
+	view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
 		
 	glm::mat4 projection;
 	projection = glm::perspective(glm::radians(45.0f), (float)screenWidth / (float)screenHeight, 0.1f, 100.0f); 
 
-	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-	{
-		cameraPos += glm::vec3(0.001f, 0.0f, 0.0f);
-	}
-	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-	{
-		cameraPos += glm::vec3(-0.001f, 0.0f, 0.0f);
-	}
-	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-	{
-		cameraPos += glm::vec3(0.0f, 0.0f, 0.001f);
-	}
-	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-	{
-		cameraPos += glm::vec3(0.0f, 0.0f, -0.001f);
-	}
 		
 	int viewLoc = glGetUniformLocation(shader.ID, "view");
 	glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
@@ -223,7 +232,7 @@ int main(void) {
 	glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
 	
-	for(auto i = 0; i < 10; i++)
+	for(auto i = 0; i <= 10; i++)
 	{
 
 		glm::mat4 model = glm::mat4(1);
@@ -254,7 +263,57 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
 
 void ProcessInput(GLFWwindow *window) {
 
+	float cameraSpeed = 2.5f * deltaTime;
+
+	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) 
+	{
+		cameraPos += cameraSpeed * cameraFront;
+	}
+	else if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+	{
+		cameraPos -= cameraSpeed * cameraFront;
+	}
+	else if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+	{
+		cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+	}
+	else if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+	{
+		cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+	}
+
+
   if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
     glfwSetWindowShouldClose(window, true);
   }
+
+}
+
+
+void ProcessMouse(GLFWwindow* window, double xpos, double ypos)
+{
+	if (firstMouse)
+	{
+		lastX = xpos;
+		lastY = ypos;
+		firstMouse = false;
+	}
+	float xoffset = xpos - lastX;
+	float yoffset = lastY - ypos;
+	lastX = xpos;
+	lastY = ypos;
+	float sensitivity = 0.1f;
+	xoffset *= sensitivity;
+	yoffset *= sensitivity;
+	yaw += xoffset;
+	pitch += yoffset;
+	if(pitch > 89.0f)
+		pitch = 89.0f;
+	if(pitch < -89.0f)
+		pitch = -89.0f;
+	glm::vec3 direction;
+	direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+	direction.y = sin(glm::radians(pitch));
+	direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+	cameraFront = glm::normalize(direction);
 }
